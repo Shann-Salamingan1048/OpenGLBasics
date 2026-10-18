@@ -13,7 +13,11 @@ find_package(glfw3 REQUIRED)
 add_executable(OpenGLBasics
         main.cpp
         core/src/glad.c
-        Shader.cpp)
+        Shader.cpp
+        VAO.cpp
+        VBO.cpp
+        EBO.cpp
+        )
 
 # Tell compiler where headers are
 target_include_directories(OpenGLBasics

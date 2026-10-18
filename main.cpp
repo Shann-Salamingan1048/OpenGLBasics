@@ -4,11 +4,16 @@
 #include <iostream>
 #include <print>
 #include <chrono>
-#include <thread>
+
 #include "Shader.hpp"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/rotate_vector.hpp>
-
+#include "VBO.hpp"
+#include "VAO.hpp"
+#include "EBO.hpp"
+class VAO;
+class VBO;
+class EBO;
 int main()
 {
     if (!glfwInit())
@@ -19,8 +24,6 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-
 
     GLFWwindow* window = glfwCreateWindow(
         800, 600, "OpenGL Basics", nullptr, nullptr
@@ -49,70 +52,69 @@ int main()
         glViewport(0,0,w,h);
     });
 
-
-    float vertices[] = {
-        // Position          // Color
-        -0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,
-         0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,
-         0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f
-    };
-
-    unsigned int VAO, VBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-
-    glBindVertexArray(VAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-
-    Shader shader("glsl/triangleRotate.vert","glsl/triangleRotate.frag");
-
-    double lastSecond = glfwGetTime();
-
-    float rotate = 0.0;
-    while (!glfwWindowShouldClose(window))
     {
-        double frameStart = glfwGetTime();
-        if (glfwGetKey(window, GLFW_KEY_ESCAPE)
-            == GLFW_PRESS)
-        {
-            glfwSetWindowShouldClose(window, true);
-        }
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        float vertices[] = {
+            // Position
+            -0.6f, -0.35f, 0.0f,
+             0.6f, -0.35f, 0.0f,
+             0.6f,  0.35f, 0.0f,
+            -0.6f,  0.35f, 0.0f,
+        };
 
-        double currentTime = glfwGetTime();
-
-        if (currentTime - lastSecond >= 1.0)
-        {
-
-            rotate += glm::radians(10.0);
-
-            lastSecond = currentTime;
-        }
+        unsigned int indices[] = {
+            0, 1, 2,
+            2, 3, 0
+        };
+        VAO vao{"Basta VAO"};
+        VBO vbo{vertices, sizeof(vertices),"Basta VBO"};
 
 
-        shader.setFloat("rotation", rotate);
+        vao.bind();
+        EBO ebo{indices, sizeof(indices),"Basta EBO"};
+        vao.linkAttrib(vbo, 0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), static_cast<void *>(nullptr));
+
+        vbo.unbind();
+        vao.unbind();
+
+
+        Shader shader("glsl/triangleRotate.vert","glsl/triangleRotate.frag", "Basta Shader");
         shader.use();
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        shader.setVec3("ourColor", 0.0f,0.0f,1.0f);
+        double lastSecond = glfwGetTime();
 
-        glfwSwapBuffers(window);
-        glfwPollEvents();
+        float rotate = 0.0;
+        constexpr uint8_t framePerSecond = 60;
+        constexpr double timePerFrame = 1.0 / framePerSecond;
+        while (!glfwWindowShouldClose(window))
+        {
+            if (glfwGetKey(window, GLFW_KEY_ESCAPE)
+                == GLFW_PRESS)
+            {
+                glfwSetWindowShouldClose(window, true);
+            }
+            glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
 
+            double currentTime = glfwGetTime();
+
+            if (currentTime - lastSecond >= timePerFrame)
+            {
+                rotate += glm::radians(10.0);
+
+                lastSecond = currentTime;
+            }
+
+
+            shader.use();
+            shader.setFloat("rotation", rotate);
+            vao.bind();
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, static_cast<void *>(nullptr));
+
+            glfwSwapBuffers(window);
+            glfwPollEvents();
+
+        }
     }
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-    shader.deleteShaderProgram();
     glfwDestroyWindow(window);
     glfwTerminate();
 

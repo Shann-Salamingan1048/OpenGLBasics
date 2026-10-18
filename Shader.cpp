@@ -6,7 +6,7 @@
 #include <print>
 #include <fstream>
 
-std::expected<GLuint, std::string> Shader::createShaderProgram(const char* vertSource, const char* fragSource)
+std::expected<GLuint, std::string_view> Shader::createShaderProgram(const char* vertSource, const char* fragSource)
 {
     auto vertAlreadyRead = read_file_fast(vertSource);
     if (!vertAlreadyRead)
@@ -16,7 +16,7 @@ std::expected<GLuint, std::string> Shader::createShaderProgram(const char* vertS
     auto vertShaderResult = compileShader(GL_VERTEX_SHADER, vertAlreadyRead->data());
     if (!vertShaderResult)
     {
-        return std::unexpected("Vertex Shader Error: " + vertShaderResult.error());
+        return std::unexpected("Vertex Shader Error: " + std::string(vertShaderResult.error()));
     }
 
     auto fragAlreadyRead = read_file_fast(fragSource);
@@ -28,7 +28,7 @@ std::expected<GLuint, std::string> Shader::createShaderProgram(const char* vertS
     if (!fragShaderResult)
     {
         glDeleteShader(*vertShaderResult);
-        return std::unexpected("Fragment Shader Error: " + fragShaderResult.error());
+        return std::unexpected("Fragment Shader Error: " + std::string(fragShaderResult.error()));
     }
 
     auto program = glCreateProgram();
@@ -51,7 +51,7 @@ std::expected<GLuint, std::string> Shader::createShaderProgram(const char* vertS
     return program;
 }
 
-std::expected<GLuint, std::string> Shader::compileShader(GLenum type, const char *source)
+std::expected<GLuint, std::string_view> Shader::compileShader(GLenum type, const char *source)
 {
     GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, nullptr);
@@ -70,8 +70,10 @@ std::expected<GLuint, std::string> Shader::compileShader(GLenum type, const char
     return shader;
 }
 
-Shader::Shader(const char *vertSource, const char *fragSource)
+Shader::Shader(const char *vertSource, const char *fragSource, std::string_view name)
+    : m_Name(name)
 {
+
     auto shaderResult = createShaderProgram(vertSource, fragSource);
     if (!shaderResult)
     {
@@ -81,7 +83,17 @@ Shader::Shader(const char *vertSource, const char *fragSource)
     m_ID = *shaderResult;
 }
 
-std::expected<std::string, std::string> Shader::read_file_fast(const std::filesystem::path &path)
+Shader::~Shader()
+{
+    std::println("{} got destroyed by destructor.", m_Name);
+    if (m_ID != 0)
+    {
+        glDeleteProgram(m_ID);
+        m_ID = 0;
+    }
+}
+
+std::expected<std::string, std::string_view> Shader::read_file_fast(const std::filesystem::path &path)
 {
     /// Open in binary mode and seek to the end (ate) to immediately get file size
     std::ifstream file(path, std::ios::binary | std::ios::ate);
@@ -111,28 +123,37 @@ std::expected<std::string, std::string> Shader::read_file_fast(const std::filesy
 }
 
 
-void Shader::setFloat(const std::string &name, float value) const
+void Shader::setFloat(std::string_view  name, float value) const
 {
     glUniform1f(glGetUniformLocation(m_ID, name.data()), value);
 }
-void Shader::setDouble(const std::string &name, double value) const
+void Shader::setDouble(std::string_view name, double value) const
 {
     glUniform1d(glGetUniformLocation(m_ID, name.data()), value);
 }
 
 
-void Shader::setVec2(const std::string& name, const glm::vec2& value) const
+void Shader::setVec2(std::string_view name, const glm::vec2& value) const
 {
     glUniform2fv(glGetUniformLocation(m_ID, name.data()), 1, &value[0]);
 }
 
-void Shader::setVec2(const std::string &name, float x, float y) const
+void Shader::setVec2(std::string_view name, float x, float y) const
 {
     glUniform2f(glGetUniformLocation(m_ID, name.data()), x,y);
 }
+void Shader::setVec3(std::string_view name, const glm::vec3& value) const
+{
+    glUniform3fv(glGetUniformLocation(m_ID, name.data()), 1, &value[0]);
+}
 
+void Shader::setVec3(std::string_view name, float x, float y,float z) const
+{
+    glUniform3f(glGetUniformLocation(m_ID, name.data()), x,y,z);
+}
 void Shader::deleteShaderProgram() noexcept
 {
+    std::println("{} got deleted.", m_Name);
     if (m_ID != 0)
     {
         glDeleteProgram(m_ID);
